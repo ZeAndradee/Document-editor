@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import {
@@ -257,9 +257,7 @@ function App() {
       !formData.valor ||
       !formData.nomePaciente
     ) {
-      alert(
-        "Por favor, preencha pelo menos os campos obrigatórios (Nome do Titular, CPF do Titular, Valor e Nome do Paciente)"
-      );
+      alert("Por favor, preencha os campos obrigatórios.");
       return;
     }
 
@@ -313,39 +311,118 @@ function App() {
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       });
 
-      // Salvar o DOCX modificado
+      // Converter DOCX para PDF mantendo 100% da formatação
       const docxBlob = new Blob([buf], {
         type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       });
-      const docxFileName = `Recibo_${formData.nomePaciente.replace(
+
+      const pdfFileName = `Recibo_${formData.nomePaciente.replace(
         /\s+/g,
         "_"
-      )}.docx`;
+      )}.pdf`;
 
-      // Download do DOCX modificado
-      const docxUrl = URL.createObjectURL(docxBlob);
-      const docxLink = document.createElement("a");
-      docxLink.href = docxUrl;
-      docxLink.download = docxFileName;
-      document.body.appendChild(docxLink);
-      docxLink.click();
-      document.body.removeChild(docxLink);
-      URL.revokeObjectURL(docxUrl);
-
-      alert(
-        `✅ Documento processado com sucesso!\n\n` +
-          `📁 Arquivo baixado: ${docxFileName}\n\n` +
-          `💡 Para gerar PDF:\n` +
-          `1. Abra o arquivo DOCX no Microsoft Word\n` +
-          `2. Vá em Arquivo → Salvar Como → PDF\n` +
-          `3. Isso manterá 100% da formatação original (paisagem, imagens, etc.)`
-      );
+      // Usar serviço online gratuito para conversão mantendo formatação
+      await convertDocxToPdfOnline(docxBlob, pdfFileName);
     } catch (error: any) {
       console.error("Erro ao processar template:", error);
-      alert(`Erro ao processar o template: ${error.message}`);
+      alert("Erro ao processar o documento. Tente novamente.");
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Função para converter DOCX para PDF usando API online
+  const convertDocxToPdfOnline = async (docxBlob: Blob, fileName: string) => {
+    try {
+      // Obter API key das variáveis de ambiente
+      const apiKey = import.meta.env.VITE_CLOUDMERSIVE_KEY;
+
+      // Verificar se a API key foi configurada
+      if (!apiKey) {
+        alert("Erro na conversão para PDF. Baixando arquivo DOCX.");
+        await offerDocxWithConversionInstructions(docxBlob, fileName);
+        return;
+      }
+
+      // Usar uma abordagem híbrida: tentar API online, se falhar usar método local
+      const success = await tryOnlineConversion(docxBlob, fileName, apiKey);
+      if (!success) {
+        // Fallback: oferecer download do DOCX com instruções de conversão
+        await offerDocxWithConversionInstructions(docxBlob, fileName);
+      }
+    } catch (error) {
+      console.error("Erro na conversão:", error);
+      await offerDocxWithConversionInstructions(docxBlob, fileName);
+    }
+  };
+
+  useEffect(() => {
+    console.log(import.meta.env.VITE_CLOUDMERSIVE_API_KEY);
+  }, []);
+
+  // Tentar conversão online usando Cloudmersive API
+  const tryOnlineConversion = async (
+    docxBlob: Blob,
+    fileName: string,
+    apiKey: string
+  ): Promise<boolean> => {
+    try {
+      // Cloudmersive API - Convert Document to PDF
+      const formDataUpload = new FormData();
+      formDataUpload.append("inputFile", docxBlob, "document.docx");
+
+      const response = await fetch(
+        "https://api.cloudmersive.com/convert/autodetect/to/pdf",
+        {
+          method: "POST",
+          headers: {
+            Apikey: apiKey,
+          },
+          body: formDataUpload,
+        }
+      );
+
+      if (response.ok) {
+        const pdfBlob = await response.blob();
+        downloadBlob(pdfBlob, fileName);
+
+        alert("Documento convertido para PDF com sucesso!");
+        return true;
+      } else {
+        console.error(
+          "Erro na API Cloudmersive:",
+          response.status,
+          response.statusText
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error("Erro na API Cloudmersive:", error);
+      return false;
+    }
+  };
+
+  // Oferecer DOCX com instruções de conversão
+  const offerDocxWithConversionInstructions = async (
+    docxBlob: Blob,
+    pdfFileName: string
+  ) => {
+    const docxFileName = pdfFileName.replace(".pdf", ".docx");
+    downloadBlob(docxBlob, docxFileName);
+
+    alert("Documento DOCX gerado com sucesso!");
+  };
+
+  // Função auxiliar para download de blobs
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const clearForm = () => {
