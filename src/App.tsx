@@ -384,7 +384,7 @@ function App() {
           <div className="form-section">
             <h2>
               <FiUser className="section-icon" />
-              Dados do Profissional
+              Dados do Titular
             </h2>
             <div className="form-group">
               <label htmlFor="nomeTitular">
@@ -397,7 +397,7 @@ function App() {
                 name="nomeTitular"
                 value={formData.nomeTitular}
                 onChange={handleInputChange}
-                placeholder="Nome completo do profissional"
+                placeholder="Nome completo do Titular"
                 required
               />
             </div>
@@ -406,6 +406,7 @@ function App() {
                 CPF do Titular
                 <span className="required-asterisk">*</span>
               </label>
+
               <input
                 type="text"
                 id="cpfTitular"
