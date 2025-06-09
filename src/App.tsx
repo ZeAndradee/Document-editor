@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import jsPDF from "jspdf";
 import Docxtemplater from "docxtemplater";
 import PizZip from "pizzip";
 import {
@@ -10,7 +9,6 @@ import {
   FiCalendar,
   FiDownload,
   FiRefreshCw,
-  FiCheckCircle,
 } from "react-icons/fi";
 import "./App.css";
 
